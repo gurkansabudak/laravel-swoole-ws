@@ -11,6 +11,7 @@ final class TableConnectionStore implements ConnectionStore
     private Table $fdToToken;
     private Table $roomMembers;
     private Table $userFds;
+    private Table $fdToPath;
 
     public function __construct(int $size = 4096)
     {
@@ -21,6 +22,10 @@ final class TableConnectionStore implements ConnectionStore
         $this->fdToToken = new Table($size);
         $this->fdToToken->column('token', Table::TYPE_STRING, 512);
         $this->fdToToken->create();
+
+        $this->fdToPath = new Table($size);
+        $this->fdToPath->column('path', Table::TYPE_STRING, 256);
+        $this->fdToPath->create();
 
         $this->roomMembers = new Table($size * 4);
         $this->roomMembers->column('room', Table::TYPE_STRING, 128);
@@ -101,6 +106,7 @@ final class TableConnectionStore implements ConnectionStore
 
         $this->fdToUser->del((string) $fd);
         $this->fdToToken->del((string) $fd);
+        $this->fdToPath->del((string) $fd);
 
         // remove membership rows for this fd
         foreach ($this->roomMembers as $key => $row) {
@@ -123,5 +129,23 @@ final class TableConnectionStore implements ConnectionStore
     private function ufKey(int|string $userId, int $fd): string
     {
         return sha1((string) $userId . ':' . $fd);
+    }
+
+    public function setHandshakePath(int $fd, ?string $path): void
+    {
+        $key = (string) $fd;
+
+        if ($path === null || $path === '') {
+            $this->fdToPath->del($key);
+            return;
+        }
+
+        $this->fdToPath->set($key, ['path' => $path]);
+    }
+
+    public function handshakePath(int $fd): ?string
+    {
+        $row = $this->fdToPath->get((string) $fd);
+        return $row ? (string) $row['path'] : null;
     }
 }

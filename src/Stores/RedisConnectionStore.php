@@ -94,12 +94,31 @@ final class RedisConnectionStore implements ConnectionStore
         $this->redis->del(
             $this->k("fd:{$fd}:rooms"),
             $this->k("fd:{$fd}:user"),
-            $this->k("fd:{$fd}:token")
+            $this->k("fd:{$fd}:token"),
+            $this->k("fd:{$fd}:path")
         );
     }
 
     private function k(string $suffix): string
     {
         return $this->prefix . $suffix;
+    }
+
+    public function setHandshakePath(int $fd, ?string $path): void
+    {
+        $key = $this->k("fd:{$fd}:path");
+
+        if ($path === null || $path === '') {
+            $this->redis->del($key);
+            return;
+        }
+
+        $this->redis->setex($key, $this->ttl, $path);
+    }
+
+    public function handshakePath(int $fd): ?string
+    {
+        $value = $this->redis->get($this->k("fd:{$fd}:path"));
+        return $value !== null ? (string) $value : null;
     }
 }
