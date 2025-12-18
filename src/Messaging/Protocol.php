@@ -11,14 +11,14 @@ final class Protocol
         $arr = Json::decodeArray($raw);
 
         return new WsMessage(
-            path: (string) ($arr['path'] ?? '/'),
-            action: (string) ($arr['action'] ?? ''),
-            data: (array) ($arr['data'] ?? []),
-            meta: (array) ($arr['meta'] ?? []),
+            path: (string)($arr['path'] ?? '/'),
+            action: (string)($arr['action'] ?? ''),
+            data: is_array($arr['data'] ?? null) ? $arr['data'] : [],
+            meta: is_array($arr['meta'] ?? null) ? $arr['meta'] : [],
         );
     }
 
-    public static function encodeEvent(string $event, array $data = [], array $meta = []): string
+    public static function encode(string $event, array $data = [], array $meta = []): string
     {
         return Json::encode([
             'event' => $event,
