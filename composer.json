@@ -1,7 +1,18 @@
 {
   "name": "erfanvahabpour/laravel-swoole-ws",
-  "description": "Laravel library for Swoole WebSocket Server with routing, channels, middleware, and broadcasting",
+  "description": "Laravel WebSocket server built on Swoole/OpenSwoole with routing, command protocols, scoped connections, channels, and Redis/Table-backed connection stores.\n",
   "type": "library",
+  "keywords": [
+    "laravel",
+    "websocket",
+    "swoole",
+    "openswoole",
+    "realtime",
+    "iot",
+    "device",
+    "php",
+    "redis"
+  ],
   "license": "MIT",
   "require": {
     "php": "^8.2",
