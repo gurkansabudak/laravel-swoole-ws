@@ -6,7 +6,9 @@ use Swoole\WebSocket\Server;
 
 final readonly class ServerFactory
 {
-    public function __construct(private WebSocketKernel $kernel) {}
+    public function __construct(private WebSocketKernel $kernel)
+    {
+    }
 
     public function make(): Server
     {
@@ -16,16 +18,21 @@ final readonly class ServerFactory
 
         $server = new Server(config('ws.host'), config('ws.port'));
 
-        $settings = (array) config('ws.server', []);
+        $settings = (array)config('ws.server', []);
 
         // OpenSwoole compatibility: remove unsupported ping options
-        if (str_contains((string) Server::class, 'OpenSwoole')) {
+        $isOpenSwoole = extension_loaded('openswoole')
+            || class_exists(\OpenSwoole\WebSocket\Server::class, false)
+            || str_starts_with(get_class($server), 'OpenSwoole\\');
+
+        if ($isOpenSwoole) {
             unset(
                 $settings['websocket_ping_interval'],
                 $settings['websocket_ping_timeout'],
                 $settings['open_websocket_ping_frame']
             );
         }
+
 
         $server->set($settings);
 
