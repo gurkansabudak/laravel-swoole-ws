@@ -9,5 +9,8 @@ final readonly class WsMessage
         public string $action,
         public array  $data,
         public array  $meta,
+        public ?string $cmd = null,
+        public ?string $ret = null,
+        public array $payload = [],
     ) {}
 }

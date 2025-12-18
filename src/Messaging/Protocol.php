@@ -36,4 +36,14 @@ final class Protocol
     {
         return self::encodeEvent('ws.error', array_merge(['code' => $code], $extra), $meta);
     }
+
+    public static function encodeCmd(string $cmd, array $payload = []): string
+    {
+        return Json::encode(array_merge(['cmd' => $cmd], $payload));
+    }
+
+    public static function encodeRet(string $ret, bool $result, array $payload = []): string
+    {
+        return Json::encode(array_merge(['ret' => $ret, 'result' => $result], $payload));
+    }
 }

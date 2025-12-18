@@ -8,14 +8,20 @@ final class Route
 {
     public readonly string $path;
     public readonly string $action;
+    public readonly ?string $cmd;
+    public readonly ?string $ret;
+    public readonly ?string $scope;
 
     /** @var Closure|array{0: class-string, 1: string}|string */
     public readonly Closure|array|string $handler;
 
-    public function __construct(string $path, string $action, callable|array|string $handler)
+    public function __construct(string $path, string $action, callable|array|string $handler, ?string $cmd = null, ?string $ret = null, ?string $scope = null,)
     {
         $this->path = $path;
         $this->action = $action;
+        $this->cmd = $cmd;
+        $this->ret = $ret;
+        $this->scope = $scope;
 
         // Keep Laravel handler formats intact:
         // - "Controller@method" (string)

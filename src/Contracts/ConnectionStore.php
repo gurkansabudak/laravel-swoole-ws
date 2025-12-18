@@ -21,4 +21,7 @@ interface ConnectionStore
     public function fdsForUser(int|string $userId): array;
 
     public function removeFd(int $fd): void;
+
+    public function setHandshakePath(int $fd, ?string $path): void;
+    public function handshakePath(int $fd): ?string;
 }

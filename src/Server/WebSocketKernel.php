@@ -18,6 +18,7 @@ final readonly class WebSocketKernel
 
     public function onOpen(Server $server, Request $request): void
     {
+
         $fd = (int) $request->fd;
         $key = (string) config('ws.auth.handshake_query_key', 'token');
 
@@ -27,6 +28,12 @@ final readonly class WebSocketKernel
         }
 
         $this->store->setHandshakeToken($fd, $token);
+
+        $uri = '/';
+        if (isset($request->server['request_uri'])) {
+            $uri = (string) $request->server['request_uri'];
+        }
+        $this->store->setHandshakePath($fd, $uri);
     }
 
     public function onMessage(Server $server, Frame $frame): void

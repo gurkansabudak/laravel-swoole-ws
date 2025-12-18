@@ -52,4 +52,14 @@ final class WsContext
             }
         }
     }
+
+    public function pushCmd(string $cmd, array $payload = []): void
+    {
+        $this->server->push($this->fd(), Protocol::encodeCmd($cmd, $payload));
+    }
+
+    public function replyRet(string $ret, bool $result, array $payload = []): void
+    {
+        $this->server->push($this->fd(), Protocol::encodeRet($ret, $result, $payload));
+    }
 }

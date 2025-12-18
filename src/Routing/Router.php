@@ -7,6 +7,12 @@ final class Router
     private RouteCollection $routes;
     private array $groupMiddleware = [];
 
+    /** @var array<string, array<string, Route>> */
+    private array $commands = [];
+
+    /** @var array<string, array<string, Route>> */
+    private array $responses = [];
+
     public function __construct()
     {
         $this->routes = new RouteCollection();
@@ -48,4 +54,29 @@ final class Router
     {
         app(\EFive\Ws\Channels\ChannelRegistry::class)->define($pattern, $authorizer);
     }
+
+    public function command(string $cmd, callable|array|string $handler, string $scope = '/'): Route
+    {
+        $route = new Route(path: '', action: '', handler: $handler, cmd: $cmd, ret: null, scope: $scope);
+        $this->commands[$scope][$cmd] = $route;
+        return $route;
+    }
+
+    public function response(string $ret, callable|array|string $handler, string $scope = '/'): Route
+    {
+        $route = new Route(path: '', action: '', handler: $handler, cmd: null, ret: $ret, scope: $scope);
+        $this->responses[$scope][$ret] = $route;
+        return $route;
+    }
+
+    public function matchCommand(string $scope, string $cmd): ?Route
+    {
+        return $this->commands[$scope][$cmd] ?? $this->commands['/'][$cmd] ?? null;
+    }
+
+    public function matchResponse(string $scope, string $ret): ?Route
+    {
+        return $this->responses[$scope][$ret] ?? $this->responses['/'][$ret] ?? null;
+    }
+
 }
