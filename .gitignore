@@ -1,0 +1,40 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Composer
+/vendor/
+composer.lock
+
+# PHPUnit / Testbench
+/.phpunit.cache/
+.phpunit.result.cache
+coverage/
+.build/
+
+# Logs / cache
+*.log
+storage/
+bootstrap/cache/
+
+# Laravel package artifacts
+/public/hot
+/public/storage
+
+# Node / frontend (if ever used)
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
+
+# Environment
+.env
+.env.*
+
+# CI / tooling
+.phpstan.cache
+.pint.cache
