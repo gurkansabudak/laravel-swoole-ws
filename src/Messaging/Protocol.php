@@ -10,11 +10,17 @@ final class Protocol
     {
         $arr = Json::decodeArray($raw);
 
+        $cmd = isset($arr['cmd']) ? (string) $arr['cmd'] : null;
+        $ret = isset($arr['ret']) ? (string) $arr['ret'] : null;
+
         return new WsMessage(
-            path: (string)($arr['path'] ?? '/'),
-            action: (string)($arr['action'] ?? ''),
+            path: (string) ($arr['path'] ?? ''),
+            action: (string) ($arr['action'] ?? ''),
             data: is_array($arr['data'] ?? null) ? $arr['data'] : [],
             meta: is_array($arr['meta'] ?? null) ? $arr['meta'] : [],
+            cmd: $cmd !== '' ? $cmd : null,
+            ret: $ret !== '' ? $ret : null,
+            payload: $arr,
         );
     }
 
