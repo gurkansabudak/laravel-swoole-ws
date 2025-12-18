@@ -1,6 +1,6 @@
 <?php
 
-use WS;
+use EFive\Ws\Facades\WS;
 
 WS::middleware(['ws.auth']) // optional group
 ->group(function () {

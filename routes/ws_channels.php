@@ -1,6 +1,6 @@
 <?php
 
-use WS;
+use EFive\Ws\Facades\WS;
 
 // Like Laravel broadcasting channel authorization
 WS::channel('private-chat.{chatId}', function ($user, $chatId) {
