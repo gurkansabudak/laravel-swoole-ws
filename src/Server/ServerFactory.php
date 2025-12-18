@@ -11,12 +11,23 @@ final readonly class ServerFactory
     public function make(): Server
     {
         if (!class_exists(Server::class)) {
-            throw new \RuntimeException('Swoole is not installed/enabled.');
+            throw new \RuntimeException('Swoole/OpenSwoole is not installed/enabled.');
         }
 
         $server = new Server(config('ws.host'), config('ws.port'));
 
-        $server->set(config('ws.server', []));
+        $settings = (array) config('ws.server', []);
+
+        // OpenSwoole compatibility: remove unsupported ping options
+        if (str_contains((string) Server::class, 'OpenSwoole')) {
+            unset(
+                $settings['websocket_ping_interval'],
+                $settings['websocket_ping_timeout'],
+                $settings['open_websocket_ping_frame']
+            );
+        }
+
+        $server->set($settings);
 
         $server->on('Open', [$this->kernel, 'onOpen']);
         $server->on('Message', [$this->kernel, 'onMessage']);
