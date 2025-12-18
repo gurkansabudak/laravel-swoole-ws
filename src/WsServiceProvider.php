@@ -30,8 +30,13 @@ final class WsServiceProvider extends ServiceProvider
 
         $this->app->singleton(\EFive\Ws\Contracts\ConnectionStore::class, function () {
             return match (config('ws.store.driver', 'table')) {
-                'memory' => new MemoryConnectionStore(),
-                default  => new TableConnectionStore(config('ws.store.table.size', 4096)),
+                'memory' => new \EFive\Ws\Stores\MemoryConnectionStore(),
+                'redis'  => new \EFive\Ws\Stores\RedisConnectionStore(
+                    connection: (string) config('ws.store.redis.connection', 'default'),
+                    prefix: (string) config('ws.store.redis.prefix', 'ws:'),
+                    ttlSeconds: (int) config('ws.store.redis.ttl_seconds', 86400),
+                ),
+                default  => new \EFive\Ws\Stores\TableConnectionStore(config('ws.store.table.size', 4096)),
             };
         });
 
@@ -62,6 +67,19 @@ final class WsServiceProvider extends ServiceProvider
 
         $this->loadWsRoutes();
         $this->loadWsChannels();
+
+        if (config('ws.builtin_routes.enabled', true)) {
+            $path = (string) config('ws.builtin_routes.path', '/ws');
+
+            /** @var \EFive\Ws\Routing\Router $router */
+            $router = $this->app->make('ws.router');
+
+            $router->route($path, 'subscribe', [\EFive\Ws\Builtin\SubscriptionsController::class, 'subscribe'])
+                ->middleware(['ws.auth']);
+
+            $router->route($path, 'unsubscribe', [\EFive\Ws\Builtin\SubscriptionsController::class, 'unsubscribe'])
+                ->middleware(['ws.auth']);
+        }
 
         if ($this->app->runningInConsole()) {
             $this->commands([

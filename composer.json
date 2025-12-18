@@ -8,6 +8,15 @@
     "illuminate/support": "^10.0|^11.0",
     "illuminate/console": "^10.0|^11.0"
   },
+  "require-dev": {
+    "orchestra/testbench": "^9.0|^10.0",
+    "phpunit/phpunit": "^10.0|^11.0"
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "EFive\\Ws\\Tests\\": "tests/"
+    }
+  },
   "autoload": {
     "psr-4": { "EFive\\Ws\\": "src/" }
   },

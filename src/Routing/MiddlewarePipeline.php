@@ -33,6 +33,11 @@ final class MiddlewarePipeline
         [$name, $params] = array_pad(explode(':', $mw, 2), 2, '');
         $params = $params === '' ? [] : explode(',', $params);
 
+        $aliases = (array) config('ws.middleware_aliases', []);
+        if (isset($aliases[$name])) {
+            $name = $aliases[$name];
+        }
+
         $instance = $this->container->make($name);
 
         return $instance->handle($passable, $next, ...$params);

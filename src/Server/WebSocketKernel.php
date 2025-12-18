@@ -19,8 +19,15 @@ final class WebSocketKernel
 
     public function onOpen(Server $server, Request $request): void
     {
-        // optional: you can auth on handshake query params
-        // e.g. ws://host:port?token=...
+        $fd = (int) $request->fd;
+        $key = (string) config('ws.auth.handshake_query_key', 'token');
+
+        $token = null;
+        if (isset($request->get) && is_array($request->get) && isset($request->get[$key])) {
+            $token = (string) $request->get[$key];
+        }
+
+        $this->store->setHandshakeToken($fd, $token);
     }
 
     public function onMessage(Server $server, Frame $frame): void
