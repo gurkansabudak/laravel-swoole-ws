@@ -6,6 +6,7 @@ use EFive\Ws\Routing\Router;
 use EFive\Ws\Routing\MiddlewarePipeline;
 use EFive\Ws\Channels\LaravelChannelAuthorizer;
 use EFive\Ws\Contracts\ConnectionStore;
+use EFive\Ws\Support\Json;
 
 final class MessageDispatcher
 {
@@ -71,6 +72,24 @@ final class MessageDispatcher
             ]);
 
             if ($result !== null) {
+                // Device protocol: auto reply as ret/result
+                if (!empty($ctx2->message?->cmd)) {
+                    if (is_array($result) && isset($result['ret'])) {
+                        $ctx2->server->push($ctx2->fd(), Json::encode($result));
+                    } else {
+                        $ctx2->replyRet($ctx2->message->cmd, true, is_array($result) ? $result : ['payload' => $result]);
+                    }
+                    return;
+                }
+
+                if (!empty($ctx2->message?->ret)) {
+                    // Usually server->device responses don't need another reply,
+                    // but if user returns something, send as a legacy response.
+                    $ctx2->respond($result);
+                    return;
+                }
+
+                // Legacy protocol
                 $ctx2->respond($result);
             }
         });
