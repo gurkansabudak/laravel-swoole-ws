@@ -1,38 +1,57 @@
-# Laravel Swoole WebSocket
+# 🔌⚡ Laravel Swoole WebSocket (laravel-swoole-ws)
 
-A **Laravel-first WebSocket server library built on Swoole**, providing clean routing, middleware, channels, and broadcasting concepts similar to Laravel HTTP and Broadcasting.
+A **high-performance WebSocket server library for Laravel** powered by **Swoole / OpenSwoole**, designed for:
 
-> ⚠️ **Status: Under Active Development**
-> This package is currently in **early development**.
-> APIs, configuration, and internal architecture **may change without notice** until a stable release is published.
-> **Not recommended for production use yet.**
+* Real-time applications
+* IoT / device communication
+* Command-based device protocols
+* Channel & room broadcasting
+* Scalable multi-connection state management (memory / table / Redis)
+
+This package provides a **Laravel-native DX** while running outside the HTTP lifecycle.
+
+> ⚠️ **Status:** Under active development
+> APIs are stabilizing, but breaking changes may occur.
 
 ## Features
 
-* Swoole `WebSocket\Server` integration
-* Laravel-style routing via `routes/ws.php`
-* Channel authorization via `routes/ws_channels.php`
-* Artisan commands to manage the server lifecycle
-* Middleware pipeline (auth, throttle, custom)
-* Room / channel membership
-* Broadcasting helpers (emit, broadcast, presence)
-* Clean message protocol (JSON-based)
-* Pluggable connection store (memory / Swoole Table)
-* Fully container-driven & extensible
+* 🚀 Swoole / OpenSwoole WebSocket server
+* 🔌 Laravel service provider & facade
+* 🧭 WebSocket routing (`WS::route`)
+* 🧠 Command-based device protocol (`WS::command`, `WS::response`)
+* 🌐 Handshake URL path scoping (`/pub/chat`, `/attendance`, etc.)
+* 🔐 Middleware support (`ws.auth`, custom middleware)
+* 👥 Channels & presence authorization
+* 📡 Broadcast to rooms / users
+* 🗃 Connection stores:
+    * In-memory
+    * Swoole\Table
+    * Redis (multi-server ready)
+* 🧪 Testbench + PHPUnit support
+* ⚙️ Artisan commands (`ws:start`, `ws:stop`, `ws:reload`)
 
 ## Requirements
 
 * PHP **8.2+**
 * Laravel **10+**
-* Swoole extension enabled
+* **Swoole** or **OpenSwoole** extension enabled
+
+Check extension:
+
+```bash
+php -m | grep swoole
+php -m | grep openswoole
+```
 
 ## Installation
 
 ```bash
-composer require erfanvahabpour/laravel-swoole-ws
+composer require erfanvahabpour/laravel-swoole-ws:dev-main
 ```
 
-Publish configuration and route files:
+Laravel auto-discovery is enabled.
+
+## Publish Config & Routes
 
 ```bash
 php artisan vendor:publish --tag=ws-config
@@ -40,34 +59,11 @@ php artisan vendor:publish --tag=ws-routes
 php artisan vendor:publish --tag=ws-channels
 ```
 
-This will create:
+Files created:
 
-```
-config/ws.php
-routes/ws.php
-routes/ws_channels.php
-```
-
-## Configuration
-
-`config/ws.php` controls server settings, routing files, storage driver, and middleware.
-
-Example:
-
-```php
-return [
-    'host' => '0.0.0.0',
-    'port' => 9502,
-
-    'routes_file' => base_path('routes/ws.php'),
-    'channels_file' => base_path('routes/ws_channels.php'),
-
-    'server' => [
-        'worker_num' => 2,
-        'daemonize' => 0,
-    ],
-];
-```
+* `config/ws.php`
+* `routes/ws.php`
+* `routes/ws_channels.php`
 
 ## Starting the WebSocket Server
 
@@ -75,151 +71,281 @@ return [
 php artisan ws:start
 ```
 
-Daemon mode:
+Default output:
 
-```bash
-php artisan ws:start --daemon
+```
+WS server starting on 0.0.0.0:9502
 ```
 
-Other commands:
+Stop / reload:
 
 ```bash
 php artisan ws:stop
 php artisan ws:reload
-php artisan ws:status
 ```
 
-## WebSocket Routing
+## WebSocket Protocols Supported
 
-Define WebSocket routes in `routes/ws.php`.
+This library supports **two protocols at the same time**:
 
-```php
-use EFive\Ws\Facades\WS;
+## 1️⃣ Legacy Route Protocol (`WS::route`)
 
-WS::route('/chat/private', 'send_msg', [
-    \App\Ws\Controllers\SendMsgController::class,
-    'index'
-])->middleware(['ws.auth']);
-```
-
-Incoming message format:
+### Client message format
 
 ```json
 {
-  "path": "/chat/private",
-  "action": "send_msg",
-  "data": {
-    "text": "hello"
-  },
-  "meta": {
-    "auth": "token"
-  }
+  "path": "/chat",
+  "action": "send",
+  "data": { "text": "hello" },
+  "meta": {}
 }
 ```
 
-## Controller Example
-
-```php
-<?php
-
-namespace App\Ws\Controllers;
-
-use EFive\Ws\Messaging\WsContext;
-
-final class SendMsgController
-{
-    public function index(WsContext $ctx, array $data): array
-    {
-        $ctx->join('private-chat.1');
-
-        $ctx->broadcastTo('private-chat.1', 'chat.message', [
-            'text' => $data['text'] ?? '',
-        ]);
-
-        return ['ok' => true];
-    }
-}
-```
-
-## Channels Authorization
-
-Define channel authorization in `routes/ws_channels.php`.
+### Route definition
 
 ```php
 use EFive\Ws\Facades\WS;
 
-WS::channel('private-chat.{chatId}', function ($user, $chatId) {
-    return $user->can('viewChat', (int) $chatId);
+WS::route('/chat', 'send', function ($ctx, $data) {
+    return ['ok' => true];
+});
+```
+
+### Response format
+
+```json
+{
+  "event": "ws.response",
+  "data": { "ok": true },
+  "meta": []
+}
+```
+
+## 2️⃣ Command / Device Protocol (`WS::command`)
+
+Designed for **IoT / terminal / attendance devices**.
+
+### Client → Server
+
+```json
+{
+  "cmd": "reg",
+  "sn": "ABC123",
+  "version": "1.0"
+}
+```
+
+### Server → Client (reply)
+
+```json
+{
+  "ret": "reg",
+  "result": true,
+  "cloudtime": "2025-01-01 12:00:00"
+}
+```
+
+## Handshake Path Scoping (IMPORTANT)
+
+Devices can connect using **different WebSocket URLs**:
+
+```
+ws://127.0.0.1:9502/pub/chat
+ws://127.0.0.1:9502/attendance
+```
+
+The **handshake path becomes a routing scope**.
+
+### Why?
+
+Different devices may use the same `cmd` names (`reg`, `sendlog`, etc.) but require **different logic**.
+
+## Scoped Command Routing
+
+### Define scoped commands
+
+```php
+use EFive\Ws\Facades\WS;
+
+WS::scope('/pub/chat')->command('reg', function ($ctx, $payload) {
+    return ['pong' => true];
 });
 
-WS::channel('presence-room.{roomId}', function ($user, $roomId) {
+WS::scope('/attendance')->command('reg', function ($ctx, $payload) {
     return [
-        'id' => $user->id,
-        'name' => $user->name,
+        'device' => 'attendance',
+        'sn' => $payload['sn'] ?? null,
     ];
 });
 ```
 
-Supports:
+### Client connects
 
-* Private channels
-* Presence channels
-* Parameterized channel names
+```bash
+wscat -c ws://127.0.0.1:9502/pub/chat
+```
+
+Send:
+
+```json
+{"cmd":"reg"}
+```
+
+Response:
+
+```json
+{"ret":"reg","result":true,"pong":true}
+```
+
+## Automatic `ret` Replies
+
+When handling `WS::command`:
+
+* If handler **returns an array**, it is automatically sent as:
+
+  ```json
+  { "ret": "<cmd>", "result": true, ...payload }
+  ```
+* If handler **calls `$ctx->replyRet()`**, return `null` to avoid double responses.
+
+### Example
+
+```php
+WS::command('reg', fn () => ['pong' => true]);
+```
+
+➡ automatically sends:
+
+```json
+{"ret":"reg","result":true,"pong":true}
+```
+
+## Manual Replies & Server Push
+
+### Manual reply
+
+```php
+$ctx->replyRet('reg', true, ['cloudtime' => now()]);
+```
+
+### Push command to client
+
+```php
+$ctx->pushCmd('getuserlist', ['count' => 10]);
+```
 
 ## Middleware
 
-WebSocket routes support middleware similar to Laravel HTTP routes.
-
-Examples:
-
-* Authentication (`ws.auth`)
-* Throttling (`throttle:20,1`)
-* Custom middleware
+### Apply to routes
 
 ```php
-WS::route('/system', 'ping', fn () => ['pong' => true])
-    ->middleware(['throttle:10,1']);
+WS::route('/chat', 'send', $handler)
+  ->middleware(['ws.auth']);
 ```
 
-## Broadcasting & Rooms
+### Built-in
 
-Available from `WsContext`:
+* `ws.auth` – token-based authentication
 
-* `join($room)`
-* `leave($room)`
-* `emit($event, $data)`
-* `broadcastTo($room, $event, $data)`
-* `respond($payload)`
+## Authentication
 
-Rooms are stored using:
+### Handshake token
 
-* Swoole Table (default)
-* In-memory store (single worker)
+```
+ws://host:port/path?token=YOUR_TOKEN
+```
 
-## Development Status
+### Message token
 
-This package is **not stable yet**.
+```json
+{
+  "cmd": "reg",
+  "meta": { "auth": "TOKEN" }
+}
+```
 
-### Known limitations
+### Custom resolver (recommended)
 
-* API may change
-* Redis driver not implemented yet
-* No multi-node clustering support
-* Limited test coverage
+```php
+config()->set('ws.auth.resolver', function (string $token) {
+    return (object) ['id' => 1, 'name' => 'Device'];
+});
+```
 
-### Planned features
+## Channels & Presence
 
-* Redis connection store
-* Built-in auth middleware
-* Presence events (join/leave)
-* Graceful shutdown handling
-* Metrics & monitoring hooks
-* Typed message validation
+### Define channels
 
-## Contributing
+`routes/ws_channels.php`
 
-Contributions are welcome.
+```php
+WS::channel('private-chat.{id}', function ($user, $id) {
+    return true;
+});
+```
+
+### Subscribe
+
+```json
+{
+  "path": "/ws",
+  "action": "subscribe",
+  "data": { "channel": "private-chat.1" }
+}
+```
+
+## Connection Stores
+
+Configured in `config/ws.php`.
+
+### Available drivers
+
+* `memory` – simple, single worker
+* `table` – fast shared memory
+* `redis` – recommended for multi-server scaling
+
+### Redis example
+
+```php
+'store' => [
+  'driver' => 'redis',
+  'redis' => [
+    'connection' => 'default',
+    'prefix' => 'ws:',
+    'ttl_seconds' => 86400,
+  ],
+],
+```
+
+## Testing
+
+```bash
+vendor/bin/phpunit
+```
+
+Uses **Orchestra Testbench**.
+
+## CI
+
+GitHub Actions included:
+
+* PHP 8.2 / 8.3
+* PHPUnit
+
+## Roadmap (v0.1.0)
+
+* [x] WebSocket routing
+* [x] Command protocol
+* [x] Handshake path scoping
+* [x] Redis connection store
+* [x] ws.auth middleware
+* [x] Subscribe / unsubscribe routes
+* [ ] Presence broadcasting
+* [ ] Rate limiting middleware
+* [ ] Server metrics endpoint
+* [ ] Binary protocol support
 
 ## License
 
-MIT License
+MIT © Erfan Vahabpour
+
