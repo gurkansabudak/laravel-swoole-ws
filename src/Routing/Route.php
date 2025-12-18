@@ -9,24 +9,25 @@ final class Route
     public readonly string $path;
     public readonly string $action;
 
-    /** @var Closure|string */
-    public readonly Closure|string $handler;
+    /** @var Closure|array{0: class-string, 1: string}|string */
+    public readonly Closure|array|string $handler;
 
     public function __construct(string $path, string $action, callable|array|string $handler)
     {
         $this->path = $path;
         $this->action = $action;
 
-        // Allow "Controller@method" string to pass through
-        if (is_string($handler)) {
+        // Keep Laravel handler formats intact:
+        // - "Controller@method" (string)
+        // - [Controller::class, 'method'] (array)
+        // - Closure
+        if (is_string($handler) || is_array($handler) || $handler instanceof Closure) {
             $this->handler = $handler;
             return;
         }
 
-        // Normalize callable/array to Closure for safe property typing
-        $this->handler = $handler instanceof Closure
-            ? $handler
-            : Closure::fromCallable($handler);
+        // For any other callable (rare), normalize to Closure
+        $this->handler = Closure::fromCallable($handler);
     }
 
     private ?string $name = null;
