@@ -4,9 +4,9 @@ namespace EFive\Ws\Server;
 
 use Swoole\WebSocket\Server;
 
-final class ServerFactory
+final readonly class ServerFactory
 {
-    public function __construct(private readonly WebSocketKernel $kernel) {}
+    public function __construct(private WebSocketKernel $kernel) {}
 
     public function make(): Server
     {

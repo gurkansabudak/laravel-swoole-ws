@@ -5,9 +5,9 @@ namespace EFive\Ws\Routing;
 use Closure;
 use Illuminate\Contracts\Container\Container;
 
-final class MiddlewarePipeline
+final readonly class MiddlewarePipeline
 {
-    public function __construct(private readonly Container $container) {}
+    public function __construct(private Container $container) {}
 
     /**
      * @param array<int, string|callable> $middleware

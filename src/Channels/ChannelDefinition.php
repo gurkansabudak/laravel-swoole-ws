@@ -2,12 +2,21 @@
 
 namespace EFive\Ws\Channels;
 
-final class ChannelDefinition
+use Closure;
+
+final readonly class ChannelDefinition
 {
     public function __construct(
-        public readonly string $pattern,
-        public readonly callable $authorizer
+        public string $pattern,
+        public Closure $authorizer,
     ) {}
+    public static function make(string $pattern, callable $authorizer): self
+    {
+        return new self(
+            $pattern,
+            $authorizer instanceof Closure ? $authorizer : $authorizer(...)
+        );
+    }
 
     public function match(string $channelName): ?array
     {

@@ -8,13 +8,12 @@ use Swoole\WebSocket\Frame;
 use EFive\Ws\Messaging\MessageDispatcher;
 use EFive\Ws\Messaging\WsContext;
 use EFive\Ws\Contracts\ConnectionStore;
-use EFive\Ws\Channels\LaravelChannelAuthorizer;
 
-final class WebSocketKernel
+final readonly class WebSocketKernel
 {
     public function __construct(
-        private readonly MessageDispatcher $dispatcher,
-        private readonly ConnectionStore $store,
+        private MessageDispatcher $dispatcher,
+        private ConnectionStore   $store,
     ) {}
 
     public function onOpen(Server $server, Request $request): void

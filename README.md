@@ -94,7 +94,7 @@ php artisan ws:status
 Define WebSocket routes in `routes/ws.php`.
 
 ```php
-use WS;
+use EFive\Ws\Facades\WS;
 
 WS::route('/chat/private', 'send_msg', [
     \App\Ws\Controllers\SendMsgController::class,
@@ -146,7 +146,7 @@ final class SendMsgController
 Define channel authorization in `routes/ws_channels.php`.
 
 ```php
-use WS;
+use EFive\Ws\Facades\WS;
 
 WS::channel('private-chat.{chatId}', function ($user, $chatId) {
     return $user->can('viewChat', (int) $chatId);

@@ -9,7 +9,7 @@ final class ChannelRegistry
 
     public function define(string $pattern, callable $authorizer): void
     {
-        $this->channels[] = new ChannelDefinition($pattern, $authorizer);
+        $this->channels[] = ChannelDefinition::make($pattern, $authorizer);
     }
 
     public function match(string $name): ?array

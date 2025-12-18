@@ -4,11 +4,11 @@ namespace EFive\Ws\Channels;
 
 use Illuminate\Support\Facades\Auth;
 
-final class LaravelChannelAuthorizer
+final readonly class LaravelChannelAuthorizer
 {
     public function __construct(
-        private readonly ChannelRegistry $registry,
-        private readonly string $guardName
+        private ChannelRegistry $registry,
+        private string          $guardName
     ) {}
 
     public function authorize(?object $user, string $channel): array
