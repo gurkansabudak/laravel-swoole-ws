@@ -37,6 +37,19 @@ final class RedisConnectionStore implements ConnectionStore
         return $fds;
     }
 
+    public function clearAllFds(): void
+    {
+        $fds = $this->allFds();
+        $this->redis->del($this->k('fds'));
+
+        foreach ($fds as $fd) {
+            $this->redis->del(
+                $this->k("fd:{$fd}:connected_at"),
+                $this->k("fd:{$fd}:last_seen_at")
+            );
+        }
+    }
+
     public function setConnectedAt(int $fd, int $unixSeconds): void
     {
         $this->redis->setex($this->k("fd:{$fd}:connected_at"), $this->ttl, (string) $unixSeconds);

@@ -60,6 +60,13 @@ final class TableConnectionStore implements ConnectionStore
         return $fds;
     }
 
+    public function clearAllFds(): void
+    {
+        foreach ($this->fdMeta as $key => $row) {
+            $this->fdMeta->del((string) $key);
+        }
+    }
+
     public function setConnectedAt(int $fd, int $unixSeconds): void
     {
         $key = (string) $fd;

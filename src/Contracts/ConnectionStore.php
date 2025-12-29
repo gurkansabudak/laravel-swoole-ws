@@ -10,6 +10,8 @@ interface ConnectionStore
     /** @return int[] */
     public function allFds(): array;
 
+    public function clearAllFds(): void;
+
     /** Store connection time in unix seconds (used for ws:list). */
     public function setConnectedAt(int $fd, int $unixSeconds): void;
     public function connectedAt(int $fd): ?int;

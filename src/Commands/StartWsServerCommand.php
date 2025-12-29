@@ -2,6 +2,7 @@
 
 namespace EFive\Ws\Commands;
 
+use EFive\Ws\Contracts\ConnectionStore;
 use Illuminate\Console\Command;
 use EFive\Ws\Server\ServerFactory;
 use EFive\Ws\Support\PidFile;
@@ -13,6 +14,8 @@ final class StartWsServerCommand extends Command
 
     public function handle(ServerFactory $factory): int
     {
+        app(ConnectionStore::class)->clearAllFds();
+
         $server = $factory->make();
 
         if ($this->option('daemon')) {

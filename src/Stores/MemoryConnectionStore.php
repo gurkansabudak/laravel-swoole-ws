@@ -41,6 +41,13 @@ final class MemoryConnectionStore implements ConnectionStore
         return $fds;
     }
 
+    public function clearAllFds(): void
+    {
+        $this->fds = [];
+        $this->connectedAt = [];
+        $this->lastSeenAt = [];
+    }
+
     public function setConnectedAt(int $fd, int $unixSeconds): void
     {
         $this->connectedAt[$fd] = $unixSeconds;
