@@ -13,37 +13,57 @@ This package provides a **Laravel-native DX** while running outside the HTTP lif
 > ⚠️ **Status:** Under active development
 > APIs are stabilizing, but breaking changes may occur.
 
-## Features
+---
+
+## ✨ Features (at a glance)
+
+### Core
 
 * 🚀 Swoole / OpenSwoole WebSocket server
 * 🔌 Laravel service provider & facade
 * 🧭 WebSocket routing (`WS::route`)
 * 🧠 Command-based device protocol (`WS::command`, `WS::response`)
 * 🌐 Handshake URL path scoping (`/pub/chat`, `/attendance`, etc.)
+
+### Security & Middleware
+
 * 🔐 Middleware support (`ws.auth`, custom middleware)
 * 👥 Channels & presence authorization
-* 📡 Broadcast to rooms / users
-* 🗃 Connection stores:
-    * In-memory
-    * Swoole\Table
-    * Redis (multi-server ready)
-* 🧪 Testbench + PHPUnit support
-* ⚙️ Artisan commands (`ws:start`, `ws:stop`, `ws:reload`)
 
-## Requirements
+### Messaging
+
+* 📡 Broadcast to rooms / users
+* 🧩 Scoped command routing
+
+### State & Scaling
+
+* 🗃 Connection stores:
+
+  * In-memory
+  * Swoole\Table
+  * Redis (multi-server ready)
+
+### Tooling
+
+* ⚙️ Artisan commands (`ws:start`, `ws:stop`, `ws:reload`, `ws:list`)
+* 🧪 Testbench + PHPUnit support
+
+---
+
+## 📦 Requirements
 
 * PHP **8.2+**
 * Laravel **10+**
 * **Swoole** or **OpenSwoole** extension enabled
-
-Check extension:
 
 ```bash
 php -m | grep swoole
 php -m | grep openswoole
 ```
 
-## Installation
+---
+
+## 📥 Installation
 
 ```bash
 composer require erfanvahabpour/laravel-swoole-ws
@@ -51,7 +71,9 @@ composer require erfanvahabpour/laravel-swoole-ws
 
 Laravel auto-discovery is enabled.
 
-## Publish Config & Routes
+---
+
+## 🗂 Publish Config & Routes
 
 ```bash
 php artisan vendor:publish --tag=ws-config
@@ -59,19 +81,19 @@ php artisan vendor:publish --tag=ws-routes
 php artisan vendor:publish --tag=ws-channels
 ```
 
-Files created:
+Creates:
 
 * `config/ws.php`
 * `routes/ws.php`
 * `routes/ws_channels.php`
 
-## Starting the WebSocket Server
+---
+
+## ▶️ Starting the WebSocket Server
 
 ```bash
 php artisan ws:start
 ```
-
-Default output:
 
 ```
 WS server starting on 0.0.0.0:9502
@@ -84,13 +106,55 @@ php artisan ws:stop
 php artisan ws:reload
 ```
 
-## WebSocket Protocols Supported
+> ℹ️ On every `ws:start`, the server clears the active connection index to prevent stale connections from appearing in `ws:list`.
 
-This library supports **two protocols at the same time**:
+---
+
+## ⚙️ Artisan Commands
+
+```bash
+php artisan ws:start
+php artisan ws:stop
+php artisan ws:reload
+php artisan ws:list
+```
+
+### `ws:list`
+
+Lists active WebSocket connections.
+
+Example:
+
+```
++---+----+-------------+-----------+------------+
+| # | FD | Scope       | User      | Connected  |
++---+----+-------------+-----------+------------+
+| 1 | 12 | /pub/chat   | guest     | 2m 14s     |
+| 2 | 18 | /attendance| user#42   | 12m 03s    |
++---+----+-------------+-----------+------------+
+```
+
+Options:
+
+```bash
+php artisan ws:list --count
+php artisan ws:list --json
+```
+
+> ℹ️ With **Swoole\Table**, `ws:list` reflects only the current WS process.
+> Use **Redis** for cross-process visibility.
+
+---
+
+## 🔁 WebSocket Protocols Supported
+
+This library supports **two protocols simultaneously**.
+
+---
 
 ## 1️⃣ Legacy Route Protocol (`WS::route`)
 
-### Client message format
+### Client → Server
 
 ```json
 {
@@ -101,25 +165,15 @@ This library supports **two protocols at the same time**:
 }
 ```
 
-### Route definition
+### Route
 
 ```php
-use EFive\Ws\Facades\WS;
-
 WS::route('/chat', 'send', function ($ctx, $data) {
     return ['ok' => true];
 });
 ```
 
-### Response format
-
-```json
-{
-  "event": "ws.response",
-  "data": { "ok": true },
-  "meta": []
-}
-```
+---
 
 ## 2️⃣ Command / Device Protocol (`WS::command`)
 
@@ -135,7 +189,7 @@ Designed for **IoT / terminal / attendance devices**.
 }
 ```
 
-### Server → Client (reply)
+### Server → Client
 
 ```json
 {
@@ -145,31 +199,25 @@ Designed for **IoT / terminal / attendance devices**.
 }
 ```
 
-## Handshake Path Scoping (IMPORTANT)
+---
 
-Devices can connect using **different WebSocket URLs**:
+## 🌐 Handshake Path Scoping
+
+Devices can connect using different URLs:
 
 ```
 ws://127.0.0.1:9502/pub/chat
 ws://127.0.0.1:9502/attendance
 ```
 
-The **handshake path becomes a routing scope**.
+Each path becomes a **routing scope**, allowing the same command names with different logic.
 
-### Why?
+---
 
-Different devices may use the same `cmd` names (`reg`, `sendlog`, etc.) but require **different logic**.
-
-## Scoped Command Routing
-
-### Define scoped commands
+## 🧭 Scoped Command Routing
 
 ```php
-use EFive\Ws\Facades\WS;
-
-WS::scope('/pub/chat')->command('reg', function ($ctx, $payload) {
-    return ['pong' => true];
-});
+WS::scope('/pub/chat')->command('reg', fn ($ctx, $payload) => ['pong' => true]);
 
 WS::scope('/attendance')->command('reg', function ($ctx, $payload) {
     return [
@@ -179,173 +227,94 @@ WS::scope('/attendance')->command('reg', function ($ctx, $payload) {
 });
 ```
 
-### Client connects
+---
 
-```bash
-wscat -c ws://127.0.0.1:9502/pub/chat
-```
+## 🔄 Automatic Replies
 
-Send:
+Returning an array automatically sends:
 
 ```json
-{"cmd":"reg"}
+{ "ret": "<cmd>", "result": true, ... }
 ```
 
-Response:
-
-```json
-{"ret":"reg","result":true,"pong":true}
-```
-
-## Automatic `ret` Replies
-
-When handling `WS::command`:
-
-* If handler **returns an array**, it is automatically sent as:
-
-  ```json
-  { "ret": "<cmd>", "result": true, ...payload }
-  ```
-* If handler **calls `$ctx->replyRet()`**, return `null` to avoid double responses.
-
-### Example
-
-```php
-WS::command('reg', fn () => ['pong' => true]);
-```
-
-➡ automatically sends:
-
-```json
-{"ret":"reg","result":true,"pong":true}
-```
-
-## Manual Replies & Server Push
-
-### Manual reply
+Manual reply:
 
 ```php
 $ctx->replyRet('reg', true, ['cloudtime' => now()]);
 ```
 
-### Push command to client
+---
+
+## 🔌 Connection Lifecycle Helpers
 
 ```php
-$ctx->pushCmd('getuserlist', ['count' => 10]);
+$ctx->isEstablished();
+$ctx->disconnect();
+$ctx->disconnectAndForget();
 ```
 
-## Middleware
+Use `disconnectAndForget()` for:
 
-### Apply to routes
+* kicking users
+* invalid devices
+* admin disconnects
+
+---
+
+## 🔐 Middleware & Authentication
+
+* Built-in: `ws.auth`
+* Handshake token: `?token=TOKEN`
+* Message token: `{ "meta": { "auth": "TOKEN" } }`
+
+Custom resolver:
 
 ```php
-WS::route('/chat', 'send', $handler)
-  ->middleware(['ws.auth']);
+config()->set('ws.auth.resolver', fn ($token) => (object)['id' => 1]);
 ```
 
-### Built-in
+---
 
-* `ws.auth` – token-based authentication
-
-## Authentication
-
-### Handshake token
-
-```
-ws://host:port/path?token=YOUR_TOKEN
-```
-
-### Message token
-
-```json
-{
-  "cmd": "reg",
-  "meta": { "auth": "TOKEN" }
-}
-```
-
-### Custom resolver (recommended)
+## 📡 Channels & Presence
 
 ```php
-config()->set('ws.auth.resolver', function (string $token) {
-    return (object) ['id' => 1, 'name' => 'Device'];
-});
+WS::channel('private-chat.{id}', fn ($user, $id) => true);
 ```
 
-## Channels & Presence
+---
 
-### Define channels
-
-`routes/ws_channels.php`
-
-```php
-WS::channel('private-chat.{id}', function ($user, $id) {
-    return true;
-});
-```
-
-### Subscribe
-
-```json
-{
-  "path": "/ws",
-  "action": "subscribe",
-  "data": { "channel": "private-chat.1" }
-}
-```
-
-## Connection Stores
-
-Configured in `config/ws.php`.
-
-### Available drivers
+## 🗃 Connection Stores
 
 * `memory` – simple, single worker
 * `table` – fast shared memory
-* `redis` – recommended for multi-server scaling
+* `redis` – recommended for scaling & CLI introspection
 
-### Redis example
+---
 
-```php
-'store' => [
-  'driver' => 'redis',
-  'redis' => [
-    'connection' => 'default',
-    'prefix' => 'ws:',
-    'ttl_seconds' => 86400,
-  ],
-],
-```
-
-## Testing
+## 🧪 Testing & CI
 
 ```bash
 vendor/bin/phpunit
 ```
 
-Uses **Orchestra Testbench**.
-
-## CI
-
-GitHub Actions included:
-
 * PHP 8.2 / 8.3
 * PHPUnit
+* GitHub Actions
 
-## Roadmap (v0.1.0)
+---
+
+## 🗺 Roadmap
 
 * [x] WebSocket routing
 * [x] Command protocol
-* [x] Handshake path scoping
-* [x] Redis connection store
-* [x] ws.auth middleware
-* [x] Subscribe / unsubscribe routes
+* [x] Scoped connections
 * [ ] Presence broadcasting
-* [ ] Rate limiting middleware
-* [ ] Server metrics endpoint
+* [ ] Rate limiting
+* [ ] Metrics endpoint
 * [ ] Binary protocol support
+
+---
 
 ## License
 
 MIT © Erfan Vahabpour
-
