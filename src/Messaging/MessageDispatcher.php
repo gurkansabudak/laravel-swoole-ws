@@ -69,6 +69,7 @@ final class MessageDispatcher
             $result = app()->call($route->handler, [
                 'ctx' => $ctx2,
                 'data' => $data,
+                'payload' => $data,
             ]);
 
             if ($result !== null) {
