@@ -87,6 +87,7 @@ final class WsServiceProvider extends ServiceProvider
                 \EFive\Ws\Commands\StopWsServerCommand::class,
                 \EFive\Ws\Commands\ReloadWsServerCommand::class,
                 \EFive\Ws\Commands\StatusWsServerCommand::class,
+                \EFive\Ws\Commands\ListWsConnectionsCommand::class,
             ]);
         }
     }

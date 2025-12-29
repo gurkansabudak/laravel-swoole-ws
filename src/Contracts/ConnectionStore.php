@@ -4,6 +4,20 @@ namespace EFive\Ws\Contracts;
 
 interface ConnectionStore
 {
+    /** Register a newly connected fd (used for listing connections). */
+    public function addFd(int $fd): void;
+
+    /** @return int[] */
+    public function allFds(): array;
+
+    /** Store connection time in unix seconds (used for ws:list). */
+    public function setConnectedAt(int $fd, int $unixSeconds): void;
+    public function connectedAt(int $fd): ?int;
+
+    /** Update last-seen time in unix seconds (used for ws:list). */
+    public function touch(int $fd, ?int $unixSeconds = null): void;
+    public function lastSeenAt(int $fd): ?int;
+
     public function bindUser(int $fd, int|string $userId): void;
     public function userId(int $fd): int|string|null;
 

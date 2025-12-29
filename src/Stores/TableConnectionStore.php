@@ -12,6 +12,7 @@ final class TableConnectionStore implements ConnectionStore
     private Table $roomMembers;
     private Table $userFds;
     private Table $fdToPath;
+    private Table $fdMeta;
 
     public function __construct(int $size = 4096)
     {
@@ -27,6 +28,11 @@ final class TableConnectionStore implements ConnectionStore
         $this->fdToPath->column('path', Table::TYPE_STRING, 256);
         $this->fdToPath->create();
 
+        $this->fdMeta = new Table($size);
+        $this->fdMeta->column('connected_at', Table::TYPE_INT);
+        $this->fdMeta->column('last_seen_at', Table::TYPE_INT);
+        $this->fdMeta->create();
+
         $this->roomMembers = new Table($size * 4);
         $this->roomMembers->column('room', Table::TYPE_STRING, 128);
         $this->roomMembers->column('fd', Table::TYPE_INT);
@@ -38,8 +44,58 @@ final class TableConnectionStore implements ConnectionStore
         $this->userFds->create();
     }
 
+    public function addFd(int $fd): void
+    {
+        $now = time();
+        $this->fdMeta->set((string) $fd, ['connected_at' => $now, 'last_seen_at' => $now]);
+    }
+
+    public function allFds(): array
+    {
+        $fds = [];
+        foreach ($this->fdMeta as $key => $row) {
+            $fds[] = (int) $key;
+        }
+        sort($fds);
+        return $fds;
+    }
+
+    public function setConnectedAt(int $fd, int $unixSeconds): void
+    {
+        $key = (string) $fd;
+        $row = $this->fdMeta->get($key) ?: ['connected_at' => $unixSeconds, 'last_seen_at' => $unixSeconds];
+        $row['connected_at'] = $unixSeconds;
+        $this->fdMeta->set($key, $row);
+    }
+
+    public function connectedAt(int $fd): ?int
+    {
+        $row = $this->fdMeta->get((string) $fd);
+        return $row ? (int) $row['connected_at'] : null;
+    }
+
+    public function touch(int $fd, ?int $unixSeconds = null): void
+    {
+        $key = (string) $fd;
+        $row = $this->fdMeta->get($key);
+        if (! $row) {
+            $this->addFd($fd);
+            $row = $this->fdMeta->get($key);
+        }
+
+        $row['last_seen_at'] = $unixSeconds ?? time();
+        $this->fdMeta->set($key, $row);
+    }
+
+    public function lastSeenAt(int $fd): ?int
+    {
+        $row = $this->fdMeta->get((string) $fd);
+        return $row ? (int) $row['last_seen_at'] : null;
+    }
+
     public function bindUser(int $fd, int|string $userId): void
     {
+        $this->addFd($fd);
         $this->fdToUser->set((string) $fd, ['user_id' => (string) $userId]);
         $this->userFds->set($this->ufKey($userId, $fd), ['user_id' => (string) $userId, 'fd' => $fd]);
     }
@@ -107,6 +163,7 @@ final class TableConnectionStore implements ConnectionStore
         $this->fdToUser->del((string) $fd);
         $this->fdToToken->del((string) $fd);
         $this->fdToPath->del((string) $fd);
+        $this->fdMeta->del((string) $fd);
 
         // remove membership rows for this fd
         foreach ($this->roomMembers as $key => $row) {

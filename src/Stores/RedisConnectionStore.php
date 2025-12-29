@@ -19,8 +19,51 @@ final class RedisConnectionStore implements ConnectionStore
         $this->ttl = $ttlSeconds;
     }
 
+    public function addFd(int $fd): void
+    {
+        $now = time();
+        $this->redis->sadd($this->k('fds'), $fd);
+        $this->redis->expire($this->k('fds'), $this->ttl);
+
+        $this->setConnectedAt($fd, $now);
+        $this->touch($fd, $now);
+    }
+
+    public function allFds(): array
+    {
+        $raw = $this->redis->smembers($this->k('fds')) ?? [];
+        $fds = array_values(array_map('intval', $raw));
+        sort($fds);
+        return $fds;
+    }
+
+    public function setConnectedAt(int $fd, int $unixSeconds): void
+    {
+        $this->redis->setex($this->k("fd:{$fd}:connected_at"), $this->ttl, (string) $unixSeconds);
+    }
+
+    public function connectedAt(int $fd): ?int
+    {
+        $v = $this->redis->get($this->k("fd:{$fd}:connected_at"));
+        return $v !== null ? (int) $v : null;
+    }
+
+    public function touch(int $fd, ?int $unixSeconds = null): void
+    {
+        $ts = $unixSeconds ?? time();
+        $this->redis->setex($this->k("fd:{$fd}:last_seen_at"), $this->ttl, (string) $ts);
+        $this->redis->expire($this->k('fds'), $this->ttl);
+    }
+
+    public function lastSeenAt(int $fd): ?int
+    {
+        $v = $this->redis->get($this->k("fd:{$fd}:last_seen_at"));
+        return $v !== null ? (int) $v : null;
+    }
+
     public function bindUser(int $fd, int|string $userId): void
     {
+        $this->addFd($fd);
         $this->redis->setex($this->k("fd:{$fd}:user"), $this->ttl, (string) $userId);
         $this->redis->sadd($this->k("user:{$userId}:fds"), $fd);
         $this->redis->expire($this->k("user:{$userId}:fds"), $this->ttl);
@@ -79,6 +122,9 @@ final class RedisConnectionStore implements ConnectionStore
     {
         $userId = $this->userId($fd);
 
+        // remove from active fd index
+        $this->redis->srem($this->k('fds'), $fd);
+
         // remove fd from rooms
         $rooms = $this->redis->smembers($this->k("fd:{$fd}:rooms")) ?? [];
         foreach ($rooms as $room) {
@@ -95,7 +141,9 @@ final class RedisConnectionStore implements ConnectionStore
             $this->k("fd:{$fd}:rooms"),
             $this->k("fd:{$fd}:user"),
             $this->k("fd:{$fd}:token"),
-            $this->k("fd:{$fd}:path")
+            $this->k("fd:{$fd}:path"),
+            $this->k("fd:{$fd}:connected_at"),
+            $this->k("fd:{$fd}:last_seen_at")
         );
     }
 

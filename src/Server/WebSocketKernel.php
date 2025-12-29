@@ -29,6 +29,9 @@ final readonly class WebSocketKernel
 
         $this->store->setHandshakeToken($fd, $token);
 
+        // Register connection for ws:list and track connection age.
+        $this->store->addFd($fd);
+
         $uri = '/';
         if (isset($request->server['request_uri'])) {
             $uri = (string) $request->server['request_uri'];
@@ -38,6 +41,9 @@ final readonly class WebSocketKernel
 
     public function onMessage(Server $server, Frame $frame): void
     {
+        // Track last activity for ws:list
+        $this->store->touch((int) $frame->fd);
+
         $ctx = new WsContext($server, $frame, $this->store);
 
         // Example: resolve auth token from message meta

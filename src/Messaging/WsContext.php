@@ -28,6 +28,61 @@ final class WsContext
 
     public function fd(): int { return (int) $this->frame->fd; }
 
+    /** Whether the current connection is still established. */
+    public function isEstablished(): bool
+    {
+        return $this->server->isEstablished($this->fd());
+    }
+
+    /**
+     * Close the current WebSocket connection.
+     *
+     * - On Swoole/OpenSwoole that support it, this will use `disconnect($fd, $code, $reason)`.
+     * - Otherwise it falls back to `close($fd)`.
+     *
+     * @param int $code WebSocket close code (default: 1000 = normal closure)
+     * @param string $reason Optional close reason (may be ignored depending on runtime)
+     */
+    public function disconnect(int $code = 1000, string $reason = ''): bool
+    {
+        $fd = $this->fd();
+
+        if (! $this->server->isEstablished($fd)) {
+            return false;
+        }
+
+        // OpenSwoole/Swoole websocket server exposes disconnect in many builds.
+        if (method_exists($this->server, 'disconnect')) {
+            // Some builds accept (fd) only, others (fd, code, reason)
+            try {
+                return (bool) $this->server->disconnect($fd, $code, $reason);
+            } catch (\Throwable) {
+                return (bool) $this->server->disconnect($fd);
+            }
+        }
+
+        return (bool) $this->server->close($fd);
+    }
+
+    /** Alias of disconnect() for readability. */
+    public function close(int $code = 1000, string $reason = ''): bool
+    {
+        return $this->disconnect($code, $reason);
+    }
+
+    /**
+     * Disconnect and immediately remove the fd from the store.
+     *
+     * Note: onClose will also call removeFd(); this is safe but optional.
+     */
+    public function disconnectAndForget(int $code = 1000, string $reason = ''): bool
+    {
+        $fd = $this->fd();
+        $ok = $this->disconnect($code, $reason);
+        $this->store->removeFd($fd);
+        return $ok;
+    }
+
     public function emit(string $event, array $data = [], array $meta = []): void
     {
         $this->server->push($this->fd(), Protocol::encodeEvent($event, $data, $meta));
@@ -62,54 +117,4 @@ final class WsContext
     {
         $this->server->push($this->fd(), Protocol::encodeRet($ret, $result, $payload));
     }
-
-    public function isEstablished(): bool
-    {
-        return $this->server->isEstablished($this->fd());
-    }
-
-    /**
-     * Close the current WebSocket connection.
-     *
-     * - If available, uses disconnect($fd, $code, $reason)
-     * - Otherwise falls back to close($fd)
-     */
-    public function disconnect(int $code = 1000, string $reason = ''): bool
-    {
-        $fd = $this->fd();
-
-        if (! $this->server->isEstablished($fd)) {
-            return false;
-        }
-
-        if (method_exists($this->server, 'disconnect')) {
-            // Some builds accept (fd) only, others (fd, code, reason)
-            try {
-                return (bool) $this->server->disconnect($fd, $code, $reason);
-            } catch (\Throwable) {
-                return (bool) $this->server->disconnect($fd);
-            }
-        }
-
-        return (bool) $this->server->close($fd);
-    }
-
-    /** Alias of disconnect() for readability. */
-    public function close(int $code = 1000, string $reason = ''): bool
-    {
-        return $this->disconnect($code, $reason);
-    }
-
-    /**
-     * Disconnect and immediately remove the fd from the store.
-     * (onClose will also remove it; this is optional but convenient.)
-     */
-    public function disconnectAndForget(int $code = 1000, string $reason = ''): bool
-    {
-        $fd = $this->fd();
-        $ok = $this->disconnect($code, $reason);
-        $this->store->removeFd($fd);
-        return $ok;
-    }
-
 }
