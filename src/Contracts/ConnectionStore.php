@@ -39,5 +39,24 @@ interface ConnectionStore
     public function removeFd(int $fd): void;
 
     public function setHandshakePath(int $fd, ?string $path): void;
+
     public function handshakePath(int $fd): ?string;
+
+    /** Set a single metadata key for an fd (stringable values). */
+    public function setMeta(int $fd, string $key, string|int|float|bool|null $value): void;
+
+    /** Get a single metadata key for an fd. */
+    public function getMeta(int $fd, string $key, mixed $default = null): mixed;
+
+    /** Get all metadata for an fd. */
+    public function meta(int $fd): array;
+
+    /** Remove one key or all metadata for an fd. */
+    public function forgetMeta(int $fd, ?string $key = null): void;
+
+    /**
+     * Find fds by exact match on meta key/value.
+     * @return int[]
+     */
+    public function fdsWhereMeta(string $key, string|int|float|bool $value): array;
 }

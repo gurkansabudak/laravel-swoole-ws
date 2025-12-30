@@ -26,6 +26,12 @@ final class MemoryConnectionStore implements ConnectionStore
     /** @var array<int,int> */
     private array $lastSeenAt = [];
 
+    /** @var array<int,array<string,string>> */
+    private array $fdMeta = [];
+
+    /** @var array<string,array<string,array<int,true>>> key => value => [fd=>true] */
+    private array $metaIndex = [];
+
     public function addFd(int $fd): void
     {
         $this->fds[$fd] = true;
@@ -46,6 +52,8 @@ final class MemoryConnectionStore implements ConnectionStore
         $this->fds = [];
         $this->connectedAt = [];
         $this->lastSeenAt = [];
+        $this->fdMeta = [];
+        $this->metaIndex = [];
     }
 
     public function setConnectedAt(int $fd, int $unixSeconds): void
@@ -145,6 +153,8 @@ final class MemoryConnectionStore implements ConnectionStore
                 unset($this->userFds[$k]);
             }
         }
+
+        $this->forgetMeta($fd);
     }
 
     public function setHandshakePath(int $fd, ?string $path): void
@@ -159,5 +169,79 @@ final class MemoryConnectionStore implements ConnectionStore
     public function handshakePath(int $fd): ?string
     {
         return $this->fdToPath[$fd] ?? null;
+    }
+
+    private function normalizeMetaValue(string|int|float|bool|null $value): ?string
+    {
+        if ($value === null) return null;
+        if (is_bool($value)) return $value ? '1' : '0';
+        return (string) $value;
+    }
+
+    public function setMeta(int $fd, string $key, string|int|float|bool|null $value): void
+    {
+        $key = trim($key);
+        if ($key === '') return;
+
+        $v = $this->normalizeMetaValue($value);
+
+        // remove old index
+        $old = $this->fdMeta[$fd][$key] ?? null;
+        if ($old !== null) {
+            unset($this->metaIndex[$key][$old][$fd]);
+            if (empty($this->metaIndex[$key][$old] ?? [])) unset($this->metaIndex[$key][$old]);
+            if (empty($this->metaIndex[$key] ?? [])) unset($this->metaIndex[$key]);
+        }
+
+        if ($v === null) {
+            unset($this->fdMeta[$fd][$key]);
+            if (isset($this->fdMeta[$fd]) && empty($this->fdMeta[$fd])) unset($this->fdMeta[$fd]);
+            return;
+        }
+
+        $this->fdMeta[$fd][$key] = $v;
+        $this->metaIndex[$key][$v][$fd] = true;
+    }
+
+    public function getMeta(int $fd, string $key, mixed $default = null): mixed
+    {
+        return $this->fdMeta[$fd][$key] ?? $default;
+    }
+
+    public function meta(int $fd): array
+    {
+        return $this->fdMeta[$fd] ?? [];
+    }
+
+    public function forgetMeta(int $fd, ?string $key = null): void
+    {
+        if ($key === null) {
+            foreach (($this->fdMeta[$fd] ?? []) as $k => $v) {
+                unset($this->metaIndex[$k][$v][$fd]);
+                if (empty($this->metaIndex[$k][$v] ?? [])) unset($this->metaIndex[$k][$v]);
+                if (empty($this->metaIndex[$k] ?? [])) unset($this->metaIndex[$k]);
+            }
+            unset($this->fdMeta[$fd]);
+            return;
+        }
+
+        $old = $this->fdMeta[$fd][$key] ?? null;
+        if ($old !== null) {
+            unset($this->metaIndex[$key][$old][$fd]);
+            if (empty($this->metaIndex[$key][$old] ?? [])) unset($this->metaIndex[$key][$old]);
+            if (empty($this->metaIndex[$key] ?? [])) unset($this->metaIndex[$key]);
+            unset($this->fdMeta[$fd][$key]);
+            if (empty($this->fdMeta[$fd] ?? [])) unset($this->fdMeta[$fd]);
+        }
+    }
+
+    public function fdsWhereMeta(string $key, string|int|float|bool $value): array
+    {
+        $v = $this->normalizeMetaValue($value);
+        if ($v === null) return [];
+
+        $fds = array_keys($this->metaIndex[$key][$v] ?? []);
+        sort($fds);
+        return $fds;
     }
 }

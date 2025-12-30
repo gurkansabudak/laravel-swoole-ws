@@ -43,6 +43,7 @@ final class RedisConnectionStore implements ConnectionStore
         $this->redis->del($this->k('fds'));
 
         foreach ($fds as $fd) {
+            $this->forgetMeta($fd);
             $this->redis->del(
                 $this->k("fd:{$fd}:connected_at"),
                 $this->k("fd:{$fd}:last_seen_at")
@@ -52,32 +53,32 @@ final class RedisConnectionStore implements ConnectionStore
 
     public function setConnectedAt(int $fd, int $unixSeconds): void
     {
-        $this->redis->setex($this->k("fd:{$fd}:connected_at"), $this->ttl, (string) $unixSeconds);
+        $this->redis->setex($this->k("fd:{$fd}:connected_at"), $this->ttl, (string)$unixSeconds);
     }
 
     public function connectedAt(int $fd): ?int
     {
         $v = $this->redis->get($this->k("fd:{$fd}:connected_at"));
-        return $v !== null ? (int) $v : null;
+        return $v !== null ? (int)$v : null;
     }
 
     public function touch(int $fd, ?int $unixSeconds = null): void
     {
         $ts = $unixSeconds ?? time();
-        $this->redis->setex($this->k("fd:{$fd}:last_seen_at"), $this->ttl, (string) $ts);
+        $this->redis->setex($this->k("fd:{$fd}:last_seen_at"), $this->ttl, (string)$ts);
         $this->redis->expire($this->k('fds'), $this->ttl);
     }
 
     public function lastSeenAt(int $fd): ?int
     {
         $v = $this->redis->get($this->k("fd:{$fd}:last_seen_at"));
-        return $v !== null ? (int) $v : null;
+        return $v !== null ? (int)$v : null;
     }
 
     public function bindUser(int $fd, int|string $userId): void
     {
         $this->addFd($fd);
-        $this->redis->setex($this->k("fd:{$fd}:user"), $this->ttl, (string) $userId);
+        $this->redis->setex($this->k("fd:{$fd}:user"), $this->ttl, (string)$userId);
         $this->redis->sadd($this->k("user:{$userId}:fds"), $fd);
         $this->redis->expire($this->k("user:{$userId}:fds"), $this->ttl);
     }
@@ -85,7 +86,7 @@ final class RedisConnectionStore implements ConnectionStore
     public function userId(int $fd): int|string|null
     {
         $v = $this->redis->get($this->k("fd:{$fd}:user"));
-        return $v !== null ? (string) $v : null;
+        return $v !== null ? (string)$v : null;
     }
 
     public function setHandshakeToken(int $fd, ?string $token): void
@@ -101,7 +102,7 @@ final class RedisConnectionStore implements ConnectionStore
     public function handshakeToken(int $fd): ?string
     {
         $v = $this->redis->get($this->k("fd:{$fd}:token"));
-        return $v !== null ? (string) $v : null;
+        return $v !== null ? (string)$v : null;
     }
 
     public function join(string $room, int $fd): void
@@ -149,6 +150,8 @@ final class RedisConnectionStore implements ConnectionStore
             $this->redis->srem($this->k("user:{$userId}:fds"), $fd);
         }
 
+        $this->forgetMeta($fd);
+
         // cleanup fd keys
         $this->redis->del(
             $this->k("fd:{$fd}:rooms"),
@@ -180,6 +183,97 @@ final class RedisConnectionStore implements ConnectionStore
     public function handshakePath(int $fd): ?string
     {
         $value = $this->redis->get($this->k("fd:{$fd}:path"));
-        return $value !== null ? (string) $value : null;
+        return $value !== null ? (string)$value : null;
+    }
+
+    private function metaKey(int $fd): string
+    {
+        return $this->k("fd:{$fd}:meta");
+    }
+
+    private function metaIndexKey(string $key, string $value): string
+    {
+        // keep it safe; value can contain ':' so we don't split, just embed
+        return $this->k("meta:{$key}:" . md5($value) . ":fds");
+    }
+
+    private function normalizeMetaValue(string|int|float|bool|null $value): ?string
+    {
+        if ($value === null) return null;
+        if (is_bool($value)) return $value ? '1' : '0';
+        return (string)$value;
+    }
+
+    public function setMeta(int $fd, string $key, string|int|float|bool|null $value): void
+    {
+        $key = trim($key);
+        if ($key === '') return;
+
+        $v = $this->normalizeMetaValue($value);
+
+        // remove old index if key existed
+        $old = $this->redis->hget($this->metaKey($fd), $key);
+        if ($old !== null && $old !== '') {
+            $this->redis->srem($this->metaIndexKey($key, (string)$old), $fd);
+        }
+
+        if ($v === null) {
+            // delete field
+            $this->redis->hdel($this->metaKey($fd), $key);
+            return;
+        }
+
+        // write hash + index
+        $this->redis->hset($this->metaKey($fd), $key, $v);
+        $this->redis->expire($this->metaKey($fd), $this->ttl);
+
+        $this->redis->sadd($this->metaIndexKey($key, $v), $fd);
+        $this->redis->expire($this->metaIndexKey($key, $v), $this->ttl);
+
+        // keep fds set alive too (so ws:list + indexes don't expire while active)
+        $this->redis->expire($this->k('fds'), $this->ttl);
+    }
+
+    public function getMeta(int $fd, string $key, mixed $default = null): mixed
+    {
+        $v = $this->redis->hget($this->metaKey($fd), $key);
+        return $v === null ? $default : $v;
+    }
+
+    public function meta(int $fd): array
+    {
+        $m = $this->redis->hgetall($this->metaKey($fd)) ?? [];
+        // Predis returns associative array already
+        return is_array($m) ? $m : [];
+    }
+
+    public function forgetMeta(int $fd, ?string $key = null): void
+    {
+        if ($key === null) {
+            // remove all fields + indexes (best effort)
+            $all = $this->meta($fd);
+            foreach ($all as $k => $v) {
+                $this->redis->srem($this->metaIndexKey((string)$k, (string)$v), $fd);
+            }
+            $this->redis->del($this->metaKey($fd));
+            return;
+        }
+
+        $old = $this->redis->hget($this->metaKey($fd), $key);
+        if ($old !== null && $old !== '') {
+            $this->redis->srem($this->metaIndexKey($key, (string)$old), $fd);
+        }
+        $this->redis->hdel($this->metaKey($fd), $key);
+    }
+
+    public function fdsWhereMeta(string $key, string|int|float|bool $value): array
+    {
+        $v = $this->normalizeMetaValue($value);
+        if ($v === null) return [];
+
+        $raw = $this->redis->smembers($this->metaIndexKey($key, $v)) ?? [];
+        $fds = array_values(array_map('intval', $raw));
+        sort($fds);
+        return $fds;
     }
 }

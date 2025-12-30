@@ -31,6 +31,7 @@ final class TableConnectionStore implements ConnectionStore
         $this->fdMeta = new Table($size);
         $this->fdMeta->column('connected_at', Table::TYPE_INT);
         $this->fdMeta->column('last_seen_at', Table::TYPE_INT);
+        $this->fdMeta->column('meta_json', Table::TYPE_STRING, 2048);
         $this->fdMeta->create();
 
         $this->roomMembers = new Table($size * 4);
@@ -47,7 +48,7 @@ final class TableConnectionStore implements ConnectionStore
     public function addFd(int $fd): void
     {
         $now = time();
-        $this->fdMeta->set((string) $fd, ['connected_at' => $now, 'last_seen_at' => $now]);
+        $this->fdMeta->set((string) $fd, ['connected_at' => $now, 'last_seen_at' => $now, 'meta_json' => '',]);
     }
 
     public function allFds(): array
@@ -70,7 +71,11 @@ final class TableConnectionStore implements ConnectionStore
     public function setConnectedAt(int $fd, int $unixSeconds): void
     {
         $key = (string) $fd;
-        $row = $this->fdMeta->get($key) ?: ['connected_at' => $unixSeconds, 'last_seen_at' => $unixSeconds];
+        $row = $this->fdMeta->get($key) ?: [
+            'connected_at' => $unixSeconds,
+            'last_seen_at' => $unixSeconds,
+            'meta_json' => '',
+        ];
         $row['connected_at'] = $unixSeconds;
         $this->fdMeta->set($key, $row);
     }
@@ -167,6 +172,8 @@ final class TableConnectionStore implements ConnectionStore
     {
         $userId = $this->userId($fd);
 
+        $this->forgetMeta($fd);
+
         $this->fdToUser->del((string) $fd);
         $this->fdToToken->del((string) $fd);
         $this->fdToPath->del((string) $fd);
@@ -211,5 +218,101 @@ final class TableConnectionStore implements ConnectionStore
     {
         $row = $this->fdToPath->get((string) $fd);
         return $row ? (string) $row['path'] : null;
+    }
+
+    private function readMetaRow(int $fd): array
+    {
+        $row = $this->fdMeta->get((string) $fd);
+        if (! $row) return [];
+        $json = (string) ($row['meta_json'] ?? '');
+        if ($json === '') return [];
+        $data = json_decode($json, true);
+        return is_array($data) ? $data : [];
+    }
+
+    private function writeMetaRow(int $fd, array $meta): void
+    {
+        // Ensure fdMeta exists (addFd if needed)
+        $key = (string) $fd;
+        $row = $this->fdMeta->get($key);
+        if (! $row) {
+            $this->addFd($fd);
+            $row = $this->fdMeta->get($key) ?: ['connected_at' => time(), 'last_seen_at' => time(), 'meta_json' => ''];
+        }
+
+        $row['meta_json'] = empty($meta) ? '' : json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $this->fdMeta->set($key, $row);
+    }
+
+    private function normalizeMetaValue(string|int|float|bool|null $value): ?string
+    {
+        if ($value === null) return null;
+        if (is_bool($value)) return $value ? '1' : '0';
+        return (string) $value;
+    }
+
+    public function setMeta(int $fd, string $key, string|int|float|bool|null $value): void
+    {
+        $key = trim($key);
+        if ($key === '') return;
+
+        $meta = $this->readMetaRow($fd);
+
+        $v = $this->normalizeMetaValue($value);
+        if ($v === null) {
+            unset($meta[$key]);
+            $this->writeMetaRow($fd, $meta);
+            return;
+        }
+
+        $meta[$key] = $v;
+        $this->writeMetaRow($fd, $meta);
+    }
+
+    public function getMeta(int $fd, string $key, mixed $default = null): mixed
+    {
+        $meta = $this->readMetaRow($fd);
+        return $meta[$key] ?? $default;
+    }
+
+    public function meta(int $fd): array
+    {
+        return $this->readMetaRow($fd);
+    }
+
+    public function forgetMeta(int $fd, ?string $key = null): void
+    {
+        if ($key === null) {
+            $this->writeMetaRow($fd, []);
+            return;
+        }
+
+        $meta = $this->readMetaRow($fd);
+        unset($meta[$key]);
+        $this->writeMetaRow($fd, $meta);
+    }
+
+    /** @return int[] */
+    public function fdsWhereMeta(string $key, string|int|float|bool $value): array
+    {
+        $v = $this->normalizeMetaValue($value);
+        if ($v === null) return [];
+
+        $fds = [];
+        foreach ($this->fdMeta as $fdKey => $row) {
+            $fd = (int) $fdKey;
+            $json = (string) ($row['meta_json'] ?? '');
+            if ($json === '') continue;
+
+            $meta = json_decode($json, true);
+            if (! is_array($meta)) continue;
+
+            if (isset($meta[$key]) && (string) $meta[$key] === $v) {
+                $fds[] = $fd;
+            }
+        }
+
+        sort($fds);
+        return $fds;
     }
 }
