@@ -18,12 +18,50 @@ final class WsBusSubscriber
     {
         $channel = config('ws.bus.channel', 'ws:push');
 
-        // Run the blocking subscribe in a coroutine-safe way
+        if (!function_exists('go')) {
+            return;
+        }
+
         go(function () use ($channel) {
-            $redis = Redis::connection(config('ws.bus.connection', 'default'));
-            $redis->subscribe([$channel], function ($message) {
-                $this->handleMessage($message);
-            });
+            while (true) {
+                try {
+                    $client = new \Swoole\Coroutine\Redis();
+
+                    // Use same redis host/port as your Laravel redis connection config
+                    $cfg = config('database.redis.' . config('ws.bus.connection', 'default'), []);
+                    $host = $cfg['host'] ?? '127.0.0.1';
+                    $port = (int)($cfg['port'] ?? 6379);
+                    $auth = $cfg['password'] ?? null;
+                    $db   = (int)($cfg['database'] ?? 0);
+
+                    if (!$client->connect($host, $port)) {
+                        \Swoole\Coroutine::sleep(1);
+                        continue;
+                    }
+                    if ($auth) $client->auth($auth);
+                    if ($db) $client->select($db);
+
+                    // Subscribe (blocking inside coroutine, OK)
+                    $client->subscribe([$channel]);
+
+                    while (true) {
+                        $msg = $client->recv();
+                        if ($msg === false || $msg === null) {
+                            break; // reconnect outer loop
+                        }
+
+                        // PhpRedis-style: ['message', 'channel', 'payload']
+                        if (is_array($msg) && ($msg[0] ?? null) === 'message') {
+                            $raw = (string)($msg[2] ?? '');
+                            $this->handleMessage($raw);
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // optional: log($e)
+                }
+
+                \Swoole\Coroutine::sleep(1); // backoff before reconnect
+            }
         });
     }
 

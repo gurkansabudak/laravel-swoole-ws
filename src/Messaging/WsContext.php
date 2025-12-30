@@ -117,4 +117,25 @@ final class WsContext
     {
         $this->server->push($this->fd(), Protocol::encodeRet($ret, $result, $payload));
     }
+
+
+    public function setMeta(string $key, string|int|float|bool|null $value): void
+    {
+        $this->store->setMeta($this->fd(), $key, $value);
+    }
+
+    public function getMeta(string $key, mixed $default = null): mixed
+    {
+        return $this->store->getMeta($this->fd(), $key, $default);
+    }
+
+    public function meta(): array
+    {
+        return $this->store->meta($this->fd());
+    }
+
+    public function forgetMeta(?string $key = null): void
+    {
+        $this->store->forgetMeta($this->fd(), $key);
+    }
 }
